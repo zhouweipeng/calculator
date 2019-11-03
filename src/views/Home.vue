@@ -1,5 +1,5 @@
 <template>
-    <div class="packing">
+    <div class="packing noselect">
         <!-- 上部内容框 -->
         <div class="content content_top">
             <div
@@ -14,12 +14,17 @@
 
         <!-- 功能栏 -->
         <div class="toolBar">
-            <van-icon name="clock-o" color="#878787" size="25px" />
-            <van-icon name="arrow-left" color="#878787" size="25px" @click="backspace" />
+            <van-icon name="clock-o" color="#878787" size="25px" @click="calcHistory" />
+            <van-icon
+                :name="formulaList.length == 0 ? back_0 : back_1"
+                color="#878787"
+                size="34px"
+                @click="backspace"
+            />
         </div>
 
         <!-- 输入区 -->
-        <van-row gutter="10" class="buttonBox noselect">
+        <van-row gutter="10" class="buttonBox">
             <van-col span="6" v-for="(item, index) in buttonList" :key="index">
                 <div
                     :class="{btn: true, reset: item.type == 'reset', symbol: item.type == 'symbol', equal: item.type == 'equal'}"
@@ -64,7 +69,10 @@ export default {
             // 用于计算结果的计算式
             formula: '',
             // 结果
-            result: ''
+            result: '',
+            // 退格图片
+            back_0: require('@/assets/backspace_0.png'),
+            back_1: require('@/assets/backspace_1.png')
         }
     },
 
@@ -75,27 +83,65 @@ export default {
                 case 'reset':
                     this.formulaList = []
                     this.formula = ''
+                    this.result = ''
                     break
                 case 'equal':
                     this.outputs()
                     break
-                default:
+                case 'symbol':
                     this.formulaList.push(info)
                     this.formula += info.value
+                    break
+                case 'number':
+                    this.formulaList.push(info)
+                    this.formula += info.value
+                    this.realTimeCalc()
+                    break
             }
         },
-        // 输出结果
-        outputs() {
+        // 实时计算
+        realTimeCalc(flag) {
             try {
-                this.result = eval(this.formula)
+                this.result = this.formula != '' ? String(eval(this.formula)) : ''
+                return true
             } catch (error) {
-                this.$notify({ type: 'danger', message: '???' })
+                this.result = ''
+                if (flag) {
+                    this.$notify({ type: 'danger', message: '恰西？？？' })
+                }
+                return false
             }
+        },
+        // 按下等于号输出结果
+        outputs() {
+            let isSuccess = this.realTimeCalc(true)
+            if (!isSuccess) {
+                return
+            }
+            this.formulaList = []
+            for (let i = 0; i < this.result.length; i++) {
+                let item = {
+                    label: this.result[i],
+                    value: this.result[i],
+                    type: 'number'
+                }
+                this.$set(this.formulaList, i, item)
+            }
+            this.formula = this.result
+            this.result = ''
         },
         // 退格
         backspace() {
+            if (this.formulaList.length == 0) {
+                return
+            }
             this.formulaList.pop()
             this.formula = this.formula.substr(0, this.formula.length - 1)
+            this.realTimeCalc()
+        },
+        // 计算历史
+        calcHistory() {
+            this.$notify({ type: 'primary', message: '在做，莫急' })
         }
     }
 }
@@ -112,15 +158,22 @@ export default {
 }
 
 .content {
-    // width: 100%;
     margin-bottom: 20px;
     flex: none;
     height: 10%;
-    font-size: 30px;
     overflow-x: auto;
     display: flex;
     justify-content: flex-end;
     align-items: center;
+}
+
+.content_top {
+    font-size: 30px;
+}
+
+.content_bottom {
+    color: #878787;
+    font-size: 20px;
 }
 
 .toolBar {
@@ -134,8 +187,10 @@ export default {
 
     .van-icon {
         width: calc((100% - 30px) / 4);
+        height: 100%;
+        line-height: calc((100vh - 40px) / 10);
         text-align: center;
-        border-radius: 12px;
+        border-radius: 50%;
 
         &:active {
             background: #c3c3c3;
@@ -162,7 +217,7 @@ export default {
     background: #f4f4f4;
     margin-top: 10px;
     font-size: 30px;
-    font-weight: bold;
+    // font-weight: bold;
     transition: all 0.1s;
 
     &:active {
